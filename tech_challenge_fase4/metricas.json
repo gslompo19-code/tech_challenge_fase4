@@ -1,0 +1,1 @@
+{"modelo": "CatBoostClassifier", "acuracia_treino": 0.8203, "acuracia_teste": 0.8, "f1_cv_medio": 0.531, "overfitting_percentual": 2.03, "confusao": [[13, 3], [3, 11]]}
