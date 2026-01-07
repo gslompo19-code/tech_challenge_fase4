@@ -18,6 +18,10 @@ st.set_page_config(
 # Carregar modelo e dados
 # =========================
 modelo = joblib.load("modelo_ibov.pkl")
+
+# Colunas esperadas pelo modelo (ESSENCIAL para CatBoost)
+colunas_modelo = modelo.feature_names_
+
 dados = pd.read_csv("dados/historico_ibov.csv")
 
 with open("metricas.json") as f:
@@ -40,6 +44,9 @@ col2.metric("Acurácia Teste", f"{metricas['acuracia_teste']*100:.2f}%")
 col3.metric("F1-score (CV)", metricas["f1_cv_medio"])
 col4.metric("Overfitting (%)", metricas["overfitting_percentual"])
 
+# =========================
+# Matriz de confusão (compacta)
+# =========================
 st.subheader("📊 Matriz de Confusão")
 
 fig, ax = plt.subplots(figsize=(3, 3))
@@ -69,14 +76,14 @@ plt.tight_layout()
 st.pyplot(fig, use_container_width=False)
 
 # =========================
-# Nova previsão (CORRIGIDO)
+# Nova previsão
 # =========================
 st.subheader("🔮 Fazer nova previsão")
 
 # Remove target se existir
 features = dados.drop(columns=["target"], errors="ignore")
 
-# Seleciona apenas colunas numéricas
+# Usa apenas colunas numéricas
 features_numericas = features.select_dtypes(include=["int64", "float64"])
 
 entrada = {}
@@ -90,6 +97,9 @@ for col in features_numericas.columns:
     )
 
 entrada_df = pd.DataFrame([entrada])
+
+# 🔐 Garante MESMAS colunas e ORDEM do treino
+entrada_df = entrada_df.reindex(columns=colunas_modelo)
 
 if st.button("Prever"):
     resultado = modelo.predict(entrada_df)[0]
@@ -107,4 +117,3 @@ if st.button("Prever"):
         header=not os.path.exists("dados/log_uso.csv"),
         index=False
     )
-
