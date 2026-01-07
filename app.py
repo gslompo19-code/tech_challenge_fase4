@@ -161,42 +161,37 @@ st.info(
 )
 
 # =========================
-# Gráfico de Backtest
+# Backtest – Valor Real vs Previsão (CSV do notebook)
 # =========================
 st.subheader("📉 Backtest – Valor Real vs Previsão do Modelo")
 
+# Carregar backtest salvo no notebook
+backtest = pd.read_csv("dados/backtest_catboost.csv")
+
+# Converter data
+backtest["Data"] = pd.to_datetime(backtest["Data"])
+
+# Slider
 n_dias = st.slider(
     "Quantidade de períodos para visualização:",
     min_value=10,
-    max_value=100,
-    value=30
+    max_value=len(backtest),
+    value=min(30, len(backtest))
 )
 
-dados_bt = dados.copy()
+backtest_plot = backtest.tail(n_dias)
 
-X_bt = dados_bt.drop(columns=["target"], errors="ignore")
-X_bt = X_bt.reindex(columns=colunas_modelo)
-
-dados_bt["Previsao_Modelo"] = modelo.predict(X_bt)
-
-dados_bt = dados_bt.tail(n_dias)
-
+# Criar gráfico manualmente (mais robusto)
 fig_bt = px.line(
-    dados_bt,
-    x=dados_bt.index,
-    y=["target", "Previsao_Modelo"],
-    labels={
-        "value": "Classe",
-        "index": "Tempo"
-    },
+    backtest_plot,
+    x="Data",
+    y=["Valor Real", "Previsão"],
+    markers=True,
     title="Comparação entre Valor Real e Previsão do Modelo"
 )
 
-fig_bt.update_traces(mode="lines+markers")
-
 st.plotly_chart(fig_bt, use_container_width=True)
 
-st.caption(
-    "✔️ Backtest do modelo utilizando dados reais, "
-    "comparando previsão e valor observado ao longo do tempo."
-)
+# Mostrar tabela
+st.subheader("📋 Resultados do Backtest")
+st.dataframe(backtest_plot)
