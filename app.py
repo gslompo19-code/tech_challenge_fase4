@@ -6,7 +6,9 @@ import matplotlib.pyplot as plt
 from datetime import datetime
 import os
 
+# =========================
 # Configuração da página
+# =========================
 st.set_page_config(
     page_title="Tech Challenge Fase 4 - IBOVESPA",
     layout="wide"
@@ -33,22 +35,10 @@ st.subheader("📈 Métricas do Modelo")
 
 col1, col2, col3, col4 = st.columns(4)
 
-col1.metric(
-    "Acurácia Treino",
-    f"{metricas['acuracia_treino']*100:.2f}%"
-)
-col2.metric(
-    "Acurácia Teste",
-    f"{metricas['acuracia_teste']*100:.2f}%"
-)
-col3.metric(
-    "F1-score (CV)",
-    metricas["f1_cv_medio"]
-)
-col4.metric(
-    "Overfitting (%)",
-    metricas["overfitting_percentual"]
-)
+col1.metric("Acurácia Treino", f"{metricas['acuracia_treino']*100:.2f}%")
+col2.metric("Acurácia Teste", f"{metricas['acuracia_teste']*100:.2f}%")
+col3.metric("F1-score (CV)", metricas["f1_cv_medio"])
+col4.metric("Overfitting (%)", metricas["overfitting_percentual"])
 
 # =========================
 # Matriz de confusão
@@ -81,18 +71,24 @@ for i in range(2):
 st.pyplot(fig)
 
 # =========================
-# Nova previsão
+# Nova previsão (CORRIGIDO)
 # =========================
 st.subheader("🔮 Fazer nova previsão")
 
+# Remove target se existir
 features = dados.drop(columns=["target"], errors="ignore")
 
+# Seleciona apenas colunas numéricas
+features_numericas = features.select_dtypes(include=["int64", "float64"])
+
 entrada = {}
-for col in features.columns:
+
+for col in features_numericas.columns:
     entrada[col] = st.number_input(
-        col,
-        float(dados[col].min()),
-        float(dados[col].max())
+        label=col,
+        min_value=float(features_numericas[col].min()),
+        max_value=float(features_numericas[col].max()),
+        value=float(features_numericas[col].mean())
     )
 
 entrada_df = pd.DataFrame([entrada])
