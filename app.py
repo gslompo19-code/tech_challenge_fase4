@@ -40,21 +40,18 @@ col2.metric("Acurácia Teste", f"{metricas['acuracia_teste']*100:.2f}%")
 col3.metric("F1-score (CV)", metricas["f1_cv_medio"])
 col4.metric("Overfitting (%)", metricas["overfitting_percentual"])
 
-# =========================
-# Matriz de confusão
-# =========================
 st.subheader("📊 Matriz de Confusão")
 
-fig, ax = plt.subplots(figsize=(4, 4))
+fig, ax = plt.subplots(figsize=(3, 3))
 ax.imshow(metricas["confusao"], cmap="Blues")
 
 ax.set_xticks([0, 1])
 ax.set_yticks([0, 1])
-ax.set_xticklabels(["Negativo", "Positivo"])
-ax.set_yticklabels(["Negativo", "Positivo"])
+ax.set_xticklabels(["Neg", "Pos"])
+ax.set_yticklabels(["Neg", "Pos"])
 
-ax.set_xlabel("Predito")
-ax.set_ylabel("Real")
+ax.set_xlabel("Predito", fontsize=9)
+ax.set_ylabel("Real", fontsize=9)
 
 for i in range(2):
     for j in range(2):
@@ -63,12 +60,13 @@ for i in range(2):
             metricas["confusao"][i][j],
             ha="center",
             va="center",
-            fontsize=12,
+            fontsize=11,
             fontweight="bold",
             color="black"
         )
 
-st.pyplot(fig)
+plt.tight_layout()
+st.pyplot(fig, use_container_width=False)
 
 # =========================
 # Nova previsão (CORRIGIDO)
@@ -109,3 +107,4 @@ if st.button("Prever"):
         header=not os.path.exists("dados/log_uso.csv"),
         index=False
     )
+
