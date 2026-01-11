@@ -9,71 +9,23 @@ import plotly.express as px
 # =====================================================
 st.set_page_config(
     page_title="Sistema Preditivo IBOVESPA",
+    page_icon="📊",
     layout="wide"
 )
 
 # =====================================================
-# ESTILO VISUAL (TEMA MERCADO / IBOVESPA)
+# ESTILO (VISUAL MAIS PROFISSIONAL)
 # =====================================================
-st.markdown("""
-<style>
-.stApp {
-    background-color: #f5f7fa;
-}
-
-h1 {
-    color: #0a2540;
-    font-weight: 700;
-}
-
-h2, h3 {
-    color: #1f3c88;
-}
-
-[data-testid="metric-container"] {
-    background-color: white;
-    border-radius: 12px;
-    padding: 15px;
-    box-shadow: 0px 2px 6px rgba(0,0,0,0.08);
-}
-
-button[data-baseweb="tab"] {
-    font-size: 16px;
-    font-weight: 600;
-    color: #0a2540;
-}
-
-.stButton > button {
-    background-color: #1f77b4;
-    color: white;
-    border-radius: 8px;
-    padding: 10px 18px;
-    font-weight: 600;
-}
-
-.stButton > button:hover {
-    background-color: #145a86;
-}
-
-.stAlert-success {
-    background-color: #e6f4ea;
-    color: #0f5132;
-    border-left: 6px solid #198754;
-}
-
-.stAlert-error {
-    background-color: #fbeaea;
-    color: #842029;
-    border-left: 6px solid #dc3545;
-}
-
-.stAlert-warning {
-    background-color: #fff4e5;
-    color: #664d03;
-    border-left: 6px solid #ffc107;
-}
-</style>
-""", unsafe_allow_html=True)
+st.markdown(
+    """
+    <style>
+        .block-container { padding-top: 2rem; }
+        h1, h2, h3 { color: #0b3c5d; }
+        .stMetric { background-color: #f0f2f6; padding: 10px; border-radius: 10px; }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
 
 # =====================================================
 # CARREGAMENTO DE ARQUIVOS
@@ -91,7 +43,13 @@ backtest = pd.read_csv(
 # TÍTULO
 # =====================================================
 st.title("📊 Sistema Preditivo de Tendência do IBOVESPA")
-st.caption("Análise de mercado baseada em Machine Learning • CatBoost • Dados históricos")
+
+st.markdown(
+    """
+    Este produto utiliza **Machine Learning (CatBoost)** para prever a  
+    **tendência futura do IBOVESPA (Alta ou Queda)** com base em dados históricos.
+    """
+)
 
 # =====================================================
 # ABAS
@@ -101,79 +59,56 @@ aba1, aba2, aba3 = st.tabs([
     "📉 Backtest",
     "ℹ️ Sobre o Modelo"
 ])
+
 # =====================================================
 # ABA 1 — PREVISÃO (PRODUTO)
 # =====================================================
 with aba1:
-    st.subheader("🔮 Simulação de Cenário de Mercado")
+    st.subheader("🔮 Previsão de Tendência do IBOVESPA")
 
     st.markdown(
-        "Ajuste os indicadores abaixo para avaliar a **probabilidade de movimento do IBOVESPA**."
+        "Ajuste os indicadores abaixo e clique em **Prever** para obter a tendência esperada."
     )
 
-    # Features usadas pelo modelo
-    feature_names = modelo.feature_names_
+    features = dados.drop(columns=["target"], errors="ignore")
 
     entrada = {}
     cols = st.columns(3)
 
-    for i, col in enumerate(feature_names):
+    for i, col in enumerate(features.columns):
         with cols[i % 3]:
-
-            if col in dados.columns:
-                valor_padrao = float(dados[col].mean())
-                valor_min = float(dados[col].quantile(0.05))
-                valor_max = float(dados[col].quantile(0.95))
-            else:
-                valor_padrao = 0.0
-                valor_min = -1.0
-                valor_max = 1.0
-
             entrada[col] = st.number_input(
                 label=col,
-                min_value=valor_min,
-                max_value=valor_max,
-                value=valor_padrao,
+                value=float(dados[col].mean()),
                 format="%.4f",
-                key=f"input_{col}_{i}"  # 🔑 CHAVE ÚNICA
+                key=f"input_{col}"
             )
 
-    entrada_df = pd.DataFrame([entrada])[feature_names]
+    entrada_df = pd.DataFrame([entrada])
 
-    if st.button("📈 Prever Tendência", key="botao_prever"):
-        try:
-            proba = modelo.predict_proba(entrada_df)[0]
-            prob_queda = proba[0]
-            prob_alta = proba[1]
+    if st.button("📈 Prever Tendência", key="btn_prever"):
+        probs = modelo.predict_proba(entrada_df)[0]
+        prob_baixa = probs[0]
+        prob_alta = probs[1]
 
-            LIMIAR_ALTA = 0.65
-            LIMIAR_QUEDA = 0.65
+        st.markdown("### 📌 Resultado da Previsão")
 
-            st.markdown("### 📊 Probabilidades Estimadas")
+        col1, col2 = st.columns(2)
 
-            colA, colB = st.columns(2)
-            colA.metric("📈 Probabilidade de Alta", f"{prob_alta*100:.1f}%")
-            colB.metric("📉 Probabilidade de Baixa", f"{prob_queda*100:.1f}%")
+        col1.metric(
+            "📉 Probabilidade de Queda",
+            f"{prob_baixa * 100:.2f}%"
+        )
 
-            st.progress(int(prob_alta * 100))
+        col2.metric(
+            "📈 Probabilidade de Alta",
+            f"{prob_alta * 100:.2f}%"
+        )
 
-            st.markdown("### 🧠 Decisão do Modelo")
-
-            if prob_alta >= LIMIAR_ALTA:
-                st.success("📈 **TENDÊNCIA DE ALTA DO IBOVESPA**")
-
-            elif prob_queda >= LIMIAR_QUEDA:
-                st.error("📉 **TENDÊNCIA DE QUEDA DO IBOVESPA**")
-
-            else:
-                st.warning(
-                    "⚖️ **TENDÊNCIA NEUTRA / INDEFINIDA**\n\n"
-                    "O modelo não identificou uma direção dominante com confiança suficiente."
-                )
-
-        except Exception as e:
-            st.error("Erro ao realizar a previsão.")
-            st.exception(e)
+        if prob_alta >= 0.5:
+            st.success("📈 **TENDÊNCIA DE ALTA DO IBOVESPA**")
+        else:
+            st.error("📉 **TENDÊNCIA DE QUEDA DO IBOVESPA**")
 
 # =====================================================
 # ABA 2 — BACKTEST
@@ -185,10 +120,11 @@ with aba2:
         "Quantidade de períodos para visualização:",
         min_value=10,
         max_value=100,
-        value=30
+        value=30,
+        key="slider_backtest"
     )
 
-    dados_bt = backtest.tail(qtd)
+    dados_bt = backtest.tail(qtd).copy()
 
     fig = px.line(
         dados_bt,
@@ -197,267 +133,61 @@ with aba2:
         markers=True,
         title="Comparação entre Valor Real e Previsão do Modelo",
         color_discrete_map={
-            "Valor Real": "#0a2540",
-            "Previsão": "#1f77b4"
+            "Valor Real": "#0b3c5d",
+            "Previsão": "#1abc9c"
         }
     )
 
     st.plotly_chart(fig, use_container_width=True)
-    st.dataframe(dados_bt, use_container_width=True)
+
+    st.dataframe(
+        dados_bt,
+        use_container_width=True,
+        hide_index=True
+    )
 
 # =====================================================
 # ABA 3 — SOBRE O MODELO
 # =====================================================
 with aba3:
     st.subheader("ℹ️ Informações do Modelo")
-
-    st.markdown("""
-    **Modelo:** CatBoostClassifier  
-    **Tipo:** Classificação Binária (Alta / Queda)  
-    **Validação:** Temporal (TimeSeriesSplit)
-    """)
-
-    col1, col2, col3, col4 = st.columns(4)
-
-    col1.metric("Acurácia Treino", f"{metricas['acuracia_treino']*100:.2f}%")
-    col2.metric("Acurácia Teste", f"{metricas['acuracia_teste']*100:.2f}%")
-    col3.metric("F1-score (CV)", f"{metricas['f1_cv_medio']:.3f}")
-    col4.metric("Overfitting", f"{metricas['overfitting_percentual']:.2f}%")
-
-    st.markdown("""
-    ### 🎯 Objetivo do Sistema
-    Apoiar a análise de mercado por meio da **previsão da tendência do IBOVESPA**,
-    aplicando Machine Learning a séries temporais financeiras.
-    """)
-import streamlit as st
-import pandas as pd
-import joblib
-import json
-import plotly.express as px
-
-# =====================================================
-# CONFIGURAÇÃO DA PÁGINA
-# =====================================================
-st.set_page_config(
-    page_title="Sistema Preditivo IBOVESPA",
-    layout="wide"
-)
-
-# =====================================================
-# ESTILO VISUAL (TEMA MERCADO / IBOVESPA)
-# =====================================================
-st.markdown("""
-<style>
-.stApp {
-    background-color: #f5f7fa;
-}
-
-h1 {
-    color: #0a2540;
-    font-weight: 700;
-}
-
-h2, h3 {
-    color: #1f3c88;
-}
-
-[data-testid="metric-container"] {
-    background-color: white;
-    border-radius: 12px;
-    padding: 15px;
-    box-shadow: 0px 2px 6px rgba(0,0,0,0.08);
-}
-
-button[data-baseweb="tab"] {
-    font-size: 16px;
-    font-weight: 600;
-    color: #0a2540;
-}
-
-.stButton > button {
-    background-color: #1f77b4;
-    color: white;
-    border-radius: 8px;
-    padding: 10px 18px;
-    font-weight: 600;
-}
-
-.stButton > button:hover {
-    background-color: #145a86;
-}
-
-.stAlert-success {
-    background-color: #e6f4ea;
-    color: #0f5132;
-    border-left: 6px solid #198754;
-}
-
-.stAlert-error {
-    background-color: #fbeaea;
-    color: #842029;
-    border-left: 6px solid #dc3545;
-}
-
-.stAlert-warning {
-    background-color: #fff4e5;
-    color: #664d03;
-    border-left: 6px solid #ffc107;
-}
-</style>
-""", unsafe_allow_html=True)
-
-# =====================================================
-# CARREGAMENTO DE ARQUIVOS
-# =====================================================
-modelo = joblib.load("modelo_ibov.pkl")
-dados = pd.read_csv("dados/historico_ibov.csv")
-metricas = json.load(open("metricas.json"))
-
-backtest = pd.read_csv(
-    "dados/backtest_catboost.csv",
-    parse_dates=["Data"]
-)
-
-# =====================================================
-# TÍTULO
-# =====================================================
-st.title("📊 Sistema Preditivo de Tendência do IBOVESPA")
-st.caption("Análise de mercado baseada em Machine Learning • CatBoost • Dados históricos")
-
-# =====================================================
-# ABAS
-# =====================================================
-aba1, aba2, aba3 = st.tabs([
-    "🔮 Previsão",
-    "📉 Backtest",
-    "ℹ️ Sobre o Modelo"
-])
-
-# =====================================================
-# ABA 1 — PREVISÃO (PRODUTO)
-# =====================================================
-with aba1:
-    st.subheader("🔮 Simulação de Cenário de Mercado")
 
     st.markdown(
-        "Ajuste os indicadores abaixo para avaliar a **probabilidade de movimento do IBOVESPA**."
+        """
+        **Modelo:** CatBoostClassifier  
+        **Problema:** Classificação Binária (Alta / Queda)  
+        **Validação:** TimeSeriesSplit  
+        **Objetivo:** Antecipar a tendência do IBOVESPA
+        """
     )
-
-    feature_names = modelo.feature_names_
-
-    entrada = {}
-    cols = st.columns(3)
-
-    for i, col in enumerate(feature_names):
-        with cols[i % 3]:
-            if col in dados.columns:
-                valor_padrao = float(dados[col].mean())
-                valor_min = float(dados[col].quantile(0.05))
-                valor_max = float(dados[col].quantile(0.95))
-            else:
-                valor_padrao = 0.0
-                valor_min = -1.0
-                valor_max = 1.0
-
-            entrada[col] = st.number_input(
-                label=col,
-                min_value=valor_min,
-                max_value=valor_max,
-                value=valor_padrao,
-                format="%.4f"
-            )
-
-    entrada_df = pd.DataFrame([entrada])[feature_names]
-
-    if st.button("📈 Prever Tendência"):
-        try:
-            proba = modelo.predict_proba(entrada_df)[0]
-            prob_queda = proba[0]
-            prob_alta = proba[1]
-
-            LIMIAR_ALTA = 0.65
-            LIMIAR_QUEDA = 0.65
-
-            st.markdown("### 📊 Probabilidades Estimadas")
-
-            colA, colB = st.columns(2)
-
-            colA.metric("📈 Probabilidade de Alta", f"{prob_alta*100:.1f}%")
-            colB.metric("📉 Probabilidade de Baixa", f"{prob_queda*100:.1f}%")
-
-            st.progress(int(prob_alta * 100))
-            st.caption("Indicador visual da probabilidade de ALTA")
-
-            st.markdown("### 🧠 Decisão do Modelo")
-
-            if prob_alta >= LIMIAR_ALTA:
-                st.success("📈 **TENDÊNCIA DE ALTA DO IBOVESPA**")
-
-            elif prob_queda >= LIMIAR_QUEDA:
-                st.error("📉 **TENDÊNCIA DE QUEDA DO IBOVESPA**")
-
-            else:
-                st.warning(
-                    "⚖️ **TENDÊNCIA NEUTRA / INDEFINIDA**  \n"
-                    "O modelo não identificou uma direção dominante com confiança suficiente."
-                )
-
-        except Exception as e:
-            st.error("Erro ao realizar a previsão.")
-            st.exception(e)
-
-# =====================================================
-# ABA 2 — BACKTEST
-# =====================================================
-with aba2:
-    st.subheader("📉 Backtest – Valor Real vs Previsão")
-
-    qtd = st.slider(
-        "Quantidade de períodos para visualização:",
-        min_value=10,
-        max_value=100,
-        value=30
-    )
-
-    dados_bt = backtest.tail(qtd)
-
-    fig = px.line(
-        dados_bt,
-        x="Data",
-        y=["Valor Real", "Previsão"],
-        markers=True,
-        title="Comparação entre Valor Real e Previsão do Modelo",
-        color_discrete_map={
-            "Valor Real": "#0a2540",
-            "Previsão": "#1f77b4"
-        }
-    )
-
-    st.plotly_chart(fig, use_container_width=True)
-    st.dataframe(dados_bt, use_container_width=True)
-
-# =====================================================
-# ABA 3 — SOBRE O MODELO
-# =====================================================
-with aba3:
-    st.subheader("ℹ️ Informações do Modelo")
-
-    st.markdown("""
-    **Modelo:** CatBoostClassifier  
-    **Tipo:** Classificação Binária (Alta / Queda)  
-    **Validação:** Temporal (TimeSeriesSplit)
-    """)
 
     col1, col2, col3, col4 = st.columns(4)
 
-    col1.metric("Acurácia Treino", f"{metricas['acuracia_treino']*100:.2f}%")
-    col2.metric("Acurácia Teste", f"{metricas['acuracia_teste']*100:.2f}%")
-    col3.metric("F1-score (CV)", f"{metricas['f1_cv_medio']:.3f}")
-    col4.metric("Overfitting", f"{metricas['overfitting_percentual']:.2f}%")
+    col1.metric(
+        "Acurácia Treino",
+        f"{metricas['acuracia_treino']*100:.2f}%"
+    )
 
-    st.markdown("""
-    ### 🎯 Objetivo do Sistema
-    Apoiar a análise de mercado por meio da **previsão da tendência do IBOVESPA**,
-    aplicando Machine Learning a séries temporais financeiras.
-    """)
+    col2.metric(
+        "Acurácia Teste",
+        f"{metricas['acuracia_teste']*100:.2f}%"
+    )
 
+    col3.metric(
+        "F1-score (CV)",
+        f"{metricas['f1_cv_medio']:.3f}"
+    )
+
+    col4.metric(
+        "Overfitting",
+        f"{metricas['overfitting_percentual']:.2f}%"
+    )
+
+    st.markdown(
+        """
+        ### 🎯 Visão de Produto
+        Este sistema foi desenvolvido como **ferramenta de apoio à decisão**,
+        permitindo testar cenários e compreender o comportamento esperado
+        do índice com base em dados históricos.
+        """
+    )
