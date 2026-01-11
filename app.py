@@ -45,14 +45,14 @@ aba1, aba2, aba3 = st.tabs([
 # ABA 1 — PREVISÃO (PRODUTO)
 # =====================================================
 with aba1:
-    st.subheader("🔮 Previsão de Tendência")
+    st.subheader("🔮 Previsão de Tendência do IBOVESPA")
 
     st.markdown("""
-    Preencha os valores abaixo e clique em **Prever** para obter a tendência esperada
-    do IBOVESPA para o próximo período.
+    Este módulo permite **simular um cenário de mercado** e obter a previsão
+    da **tendência do IBOVESPA** para o próximo período, com base no modelo treinado.
     """)
 
-    # Features exatamente como o modelo espera
+    # Garantir exatamente as features usadas no treino
     feature_names = modelo.feature_names_
 
     entrada = {}
@@ -62,30 +62,59 @@ with aba1:
         with cols[i % 3]:
             if col in dados.columns:
                 valor_padrao = float(dados[col].mean())
+                valor_min = float(dados[col].quantile(0.05))
+                valor_max = float(dados[col].quantile(0.95))
             else:
                 valor_padrao = 0.0
+                valor_min = -1.0
+                valor_max = 1.0
 
             entrada[col] = st.number_input(
                 label=col,
-                value=valor_padrao
+                min_value=valor_min,
+                max_value=valor_max,
+                value=valor_padrao,
+                format="%.4f"
             )
 
-    # DataFrame NA ORDEM CORRETA
+    # DataFrame FINAL — ordem correta
     entrada_df = pd.DataFrame([entrada])[feature_names]
 
     if st.button("📈 Prever Tendência"):
         try:
-            pred = modelo.predict(entrada_df)[0]
+            # Probabilidades
+            proba = modelo.predict_proba(entrada_df)[0]
+            prob_queda = proba[0]
+            prob_alta = proba[1]
 
-            if pred == 1:
-                st.success("📈 **TENDÊNCIA DE ALTA do IBOVESPA**")
+            st.markdown("### 📊 Resultado da Previsão")
+
+            # Barra visual
+            st.progress(int(prob_alta * 100))
+            st.caption("Probabilidade estimada de tendência de alta")
+
+            # Decisão com zona neutra
+            if prob_alta >= 0.55:
+                st.success(
+                    f"📈 **TENDÊNCIA DE ALTA DO IBOVESPA**  \n"
+                    f"Probabilidade: **{prob_alta*100:.1f}%**"
+                )
+
+            elif prob_queda >= 0.55:
+                st.error(
+                    f"📉 **TENDÊNCIA DE QUEDA DO IBOVESPA**  \n"
+                    f"Probabilidade: **{prob_queda*100:.1f}%**"
+                )
+
             else:
-                st.error("📉 **TENDÊNCIA DE QUEDA do IBOVESPA**")
+                st.warning(
+                    "⚠️ **TENDÊNCIA NEUTRA / INDEFINIDA**  \n"
+                    "O modelo não identificou uma direção dominante."
+                )
 
         except Exception as e:
             st.error("Erro ao realizar a previsão.")
             st.exception(e)
-
 
 # =====================================================
 # ABA 2 — BACKTEST
@@ -138,4 +167,5 @@ with aba3:
     Antecipar a **tendência do IBOVESPA**, auxiliando na análise de mercado e tomada
     de decisão baseada em dados.
     """)
+
 
