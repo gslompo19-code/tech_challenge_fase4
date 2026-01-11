@@ -52,27 +52,40 @@ with aba1:
     do IBOVESPA para o próximo período.
     """)
 
-    features = dados.drop(columns=["target"], errors="ignore")
+    # Features exatamente como o modelo espera
+    feature_names = modelo.feature_names_
 
     entrada = {}
     cols = st.columns(3)
 
-    for i, col in enumerate(features.columns):
+    for i, col in enumerate(feature_names):
         with cols[i % 3]:
+            if col in dados.columns:
+                valor_padrao = float(dados[col].mean())
+            else:
+                valor_padrao = 0.0
+
             entrada[col] = st.number_input(
                 label=col,
-                value=float(dados[col].mean())
+                value=valor_padrao
             )
 
-    entrada_df = pd.DataFrame([entrada])
+    # DataFrame NA ORDEM CORRETA
+    entrada_df = pd.DataFrame([entrada])[feature_names]
 
     if st.button("📈 Prever Tendência"):
-        pred = modelo.predict(entrada_df)[0]
+        try:
+            pred = modelo.predict(entrada_df)[0]
 
-        if pred == 1:
-            st.success("📈 **TENDÊNCIA DE ALTA do IBOVESPA**")
-        else:
-            st.error("📉 **TENDÊNCIA DE QUEDA do IBOVESPA**")
+            if pred == 1:
+                st.success("📈 **TENDÊNCIA DE ALTA do IBOVESPA**")
+            else:
+                st.error("📉 **TENDÊNCIA DE QUEDA do IBOVESPA**")
+
+        except Exception as e:
+            st.error("Erro ao realizar a previsão.")
+            st.exception(e)
+
 
 # =====================================================
 # ABA 2 — BACKTEST
@@ -125,3 +138,4 @@ with aba3:
     Antecipar a **tendência do IBOVESPA**, auxiliando na análise de mercado e tomada
     de decisão baseada em dados.
     """)
+
