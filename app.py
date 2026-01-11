@@ -2,196 +2,126 @@ import streamlit as st
 import pandas as pd
 import joblib
 import json
-import matplotlib.pyplot as plt
-from datetime import datetime
-import os
 import plotly.express as px
-import numpy as np
 
-# =========================
-# Configuração da página
-# =========================
+# =====================================================
+# CONFIGURAÇÃO DA PÁGINA
+# =====================================================
 st.set_page_config(
-    page_title="Tech Challenge Fase 4 - IBOVESPA",
+    page_title="Sistema Preditivo IBOVESPA",
     layout="wide"
 )
 
-# =========================
-# Carregar modelo e dados
-# =========================
+# =====================================================
+# CARREGAMENTO DE ARQUIVOS
+# =====================================================
 modelo = joblib.load("modelo_ibov.pkl")
-colunas_modelo = modelo.feature_names_
-
 dados = pd.read_csv("dados/historico_ibov.csv")
+metricas = json.load(open("metricas.json"))
 
-with open("metricas.json") as f:
-    metricas = json.load(f)
+# Backtest salvo no notebook
+backtest = pd.read_csv("dados/backtest_catboost.csv", parse_dates=["Data"])
 
-# =========================
-# Título
-# =========================
-st.title("📊 Previsão IBOVESPA – Modelo CatBoost")
+# =====================================================
+# TÍTULO
+# =====================================================
+st.title("📊 Sistema Preditivo de Tendência do IBOVESPA")
 
-# =========================
-# Métricas
-# =========================
-st.subheader("📈 Métricas do Modelo")
+st.markdown("""
+Este sistema utiliza **Machine Learning (CatBoost)** para prever a **tendência do IBOVESPA**
+com base em dados históricos.
+""")
 
-c1, c2, c3, c4 = st.columns(4)
-c1.metric("Acurácia Treino", f"{metricas['acuracia_treino']*100:.2f}%")
-c2.metric("Acurácia Teste", f"{metricas['acuracia_teste']*100:.2f}%")
-c3.metric("F1-score (CV)", metricas["f1_cv_medio"])
-c4.metric("Overfitting (%)", metricas["overfitting_percentual"])
+# =====================================================
+# ABAS
+# =====================================================
+aba1, aba2, aba3 = st.tabs([
+    "🔮 Previsão",
+    "📉 Backtest",
+    "ℹ️ Sobre o Modelo"
+])
 
-# =========================
-# Matriz de confusão
-# =========================
-st.subheader("📊 Matriz de Confusão")
+# =====================================================
+# ABA 1 — PREVISÃO (PRODUTO)
+# =====================================================
+with aba1:
+    st.subheader("🔮 Previsão de Tendência")
 
-fig, ax = plt.subplots(figsize=(3, 3))
-ax.imshow(metricas["confusao"], cmap="Blues")
+    st.markdown("""
+    Preencha os valores abaixo e clique em **Prever** para obter a tendência esperada
+    do IBOVESPA para o próximo período.
+    """)
 
-ax.set_xticks([0, 1])
-ax.set_yticks([0, 1])
-ax.set_xticklabels(["Negativo", "Positivo"])
-ax.set_yticklabels(["Negativo", "Positivo"])
+    features = dados.drop(columns=["target"], errors="ignore")
 
-for i in range(2):
-    for j in range(2):
-        ax.text(
-            j, i,
-            metricas["confusao"][i][j],
-            ha="center",
-            va="center",
-            fontsize=11,
-            fontweight="bold"
-        )
+    entrada = {}
+    cols = st.columns(3)
 
-st.pyplot(fig, use_container_width=False)
+    for i, col in enumerate(features.columns):
+        with cols[i % 3]:
+            entrada[col] = st.number_input(
+                label=col,
+                value=float(dados[col].mean())
+            )
 
-# =========================
-# Preparação das features
-# =========================
-features = dados.drop(columns=["target"], errors="ignore")
-features_numericas = features.select_dtypes(include=["int64", "float64"])
+    entrada_df = pd.DataFrame([entrada])
 
-# =========================
-# Previsão manual
-# =========================
-st.subheader("🔮 Fazer nova previsão")
+    if st.button("📈 Prever Tendência"):
+        pred = modelo.predict(entrada_df)[0]
 
-entrada = {}
+        if pred == 1:
+            st.success("📈 **TENDÊNCIA DE ALTA do IBOVESPA**")
+        else:
+            st.error("📉 **TENDÊNCIA DE QUEDA do IBOVESPA**")
 
-for col in features_numericas.columns:
-    entrada[col] = st.slider(
-        col,
-        float(features_numericas[col].min()),
-        float(features_numericas[col].max()),
-        float(features_numericas[col].mean())
+# =====================================================
+# ABA 2 — BACKTEST
+# =====================================================
+with aba2:
+    st.subheader("📉 Backtest – Valor Real vs Previsão")
+
+    qtd = st.slider(
+        "Quantidade de períodos para visualização:",
+        min_value=10,
+        max_value=100,
+        value=30
     )
 
-entrada_df = pd.DataFrame([entrada])
-entrada_df = entrada_df.reindex(columns=colunas_modelo)
+    dados_bt = backtest.tail(qtd)
 
-if st.button("Prever"):
-    prob = modelo.predict_proba(entrada_df)[0][1]
-    classe = int(prob >= 0.5)
-
-    st.success(
-        f"📈 Probabilidade de Alta: {prob:.2%} | Classe prevista: {classe}"
+    fig = px.line(
+        dados_bt,
+        x="Data",
+        y=["Valor Real", "Previsão"],
+        markers=True,
+        title="Comparação entre Valor Real e Previsão do Modelo"
     )
 
-    log = entrada_df.copy()
-    log["probabilidade_alta"] = prob
-    log["classe_prevista"] = classe
-    log["data_hora"] = datetime.now()
+    st.plotly_chart(fig, use_container_width=True)
 
-    os.makedirs("dados", exist_ok=True)
-    log.to_csv(
-        "dados/log_uso.csv",
-        mode="a",
-        header=not os.path.exists("dados/log_uso.csv"),
-        index=False
-    )
+    st.dataframe(dados_bt, use_container_width=True)
 
-# =========================
-# Gráfico de sensibilidade
-# =========================
-st.subheader("📈 Gráfico Interativo – Sensibilidade do Modelo")
+# =====================================================
+# ABA 3 — SOBRE O MODELO
+# =====================================================
+with aba3:
+    st.subheader("ℹ️ Informações do Modelo")
 
-variavel = st.selectbox(
-    "Escolha uma variável para variar isoladamente:",
-    features_numericas.columns
-)
+    st.markdown("""
+    **Modelo utilizado:** CatBoostClassifier  
+    **Tipo:** Classificação binária (Alta / Queda)  
+    **Validação:** Temporal (TimeSeriesSplit)  
+    """)
 
-valores = np.linspace(
-    features_numericas[variavel].min(),
-    features_numericas[variavel].max(),
-    20
-)
+    col1, col2, col3, col4 = st.columns(4)
 
-probas = []
+    col1.metric("Acurácia Treino", f"{metricas['acuracia_treino']*100:.2f}%")
+    col2.metric("Acurácia Teste", f"{metricas['acuracia_teste']*100:.2f}%")
+    col3.metric("F1-score (CV)", f"{metricas['f1_cv_medio']:.3f}")
+    col4.metric("Overfitting", f"{metricas['overfitting_percentual']:.2f}%")
 
-for v in valores:
-    sim = entrada_df.copy()
-    sim[variavel] = v
-    sim = sim.reindex(columns=colunas_modelo)
-    p = modelo.predict_proba(sim)[0][1]
-    probas.append(p)
-
-df_sim = pd.DataFrame({
-    variavel: valores,
-    "Probabilidade de Alta": probas
-})
-
-fig_sim = px.line(
-    df_sim,
-    x=variavel,
-    y="Probabilidade de Alta",
-    markers=True,
-    title="Resposta do Modelo à Variação de uma Feature"
-)
-
-st.plotly_chart(fig_sim, use_container_width=True)
-
-st.info(
-    "ℹ️ A linha pode aparecer constante porque modelos baseados em árvores "
-    "tomam decisões por regras. Variar uma única feature pode não alterar "
-    "a decisão do modelo."
-)
-
-# =========================
-# Backtest – Valor Real vs Previsão (CSV do notebook)
-# =========================
-st.subheader("📉 Backtest – Valor Real vs Previsão do Modelo")
-
-# Carregar backtest salvo no notebook
-backtest = pd.read_csv("dados/backtest_catboost.csv")
-
-# Converter data
-backtest["Data"] = pd.to_datetime(backtest["Data"])
-
-# Slider
-n_dias = st.slider(
-    "Quantidade de períodos para visualização:",
-    min_value=10,
-    max_value=len(backtest),
-    value=min(30, len(backtest))
-)
-
-backtest_plot = backtest.tail(n_dias)
-
-# Criar gráfico manualmente (mais robusto)
-fig_bt = px.line(
-    backtest_plot,
-    x="Data",
-    y=["Valor Real", "Previsão"],
-    markers=True,
-    title="Comparação entre Valor Real e Previsão do Modelo"
-)
-
-st.plotly_chart(fig_bt, use_container_width=True)
-
-# Mostrar tabela
-st.subheader("📋 Resultados do Backtest")
-st.dataframe(backtest_plot)
+    st.markdown("""
+    ### 🎯 Objetivo do Modelo
+    Antecipar a **tendência do IBOVESPA**, auxiliando na análise de mercado e tomada
+    de decisão baseada em dados.
+    """)
