@@ -101,7 +101,6 @@ aba1, aba2, aba3 = st.tabs([
     "📉 Backtest",
     "ℹ️ Sobre o Modelo"
 ])
-
 # =====================================================
 # ABA 1 — PREVISÃO (PRODUTO)
 # =====================================================
@@ -112,6 +111,7 @@ with aba1:
         "Ajuste os indicadores abaixo para avaliar a **probabilidade de movimento do IBOVESPA**."
     )
 
+    # Features usadas pelo modelo
     feature_names = modelo.feature_names_
 
     entrada = {}
@@ -119,6 +119,7 @@ with aba1:
 
     for i, col in enumerate(feature_names):
         with cols[i % 3]:
+
             if col in dados.columns:
                 valor_padrao = float(dados[col].mean())
                 valor_min = float(dados[col].quantile(0.05))
@@ -133,12 +134,13 @@ with aba1:
                 min_value=valor_min,
                 max_value=valor_max,
                 value=valor_padrao,
-                format="%.4f"
+                format="%.4f",
+                key=f"input_{col}_{i}"  # 🔑 CHAVE ÚNICA
             )
 
     entrada_df = pd.DataFrame([entrada])[feature_names]
 
-    if st.button("📈 Prever Tendência"):
+    if st.button("📈 Prever Tendência", key="botao_prever"):
         try:
             proba = modelo.predict_proba(entrada_df)[0]
             prob_queda = proba[0]
@@ -150,12 +152,10 @@ with aba1:
             st.markdown("### 📊 Probabilidades Estimadas")
 
             colA, colB = st.columns(2)
-
             colA.metric("📈 Probabilidade de Alta", f"{prob_alta*100:.1f}%")
             colB.metric("📉 Probabilidade de Baixa", f"{prob_queda*100:.1f}%")
 
             st.progress(int(prob_alta * 100))
-            st.caption("Indicador visual da probabilidade de ALTA")
 
             st.markdown("### 🧠 Decisão do Modelo")
 
@@ -167,7 +167,7 @@ with aba1:
 
             else:
                 st.warning(
-                    "⚖️ **TENDÊNCIA NEUTRA / INDEFINIDA**  \n"
+                    "⚖️ **TENDÊNCIA NEUTRA / INDEFINIDA**\n\n"
                     "O modelo não identificou uma direção dominante com confiança suficiente."
                 )
 
@@ -460,3 +460,4 @@ with aba3:
     Apoiar a análise de mercado por meio da **previsão da tendência do IBOVESPA**,
     aplicando Machine Learning a séries temporais financeiras.
     """)
+
