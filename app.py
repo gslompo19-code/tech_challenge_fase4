@@ -138,29 +138,48 @@ with aba1:
 
 # =====================================================
 # ABA 2 — BACKTEST
-# =====================================================
 with aba2:
     st.subheader("📉 Backtest – Valor Real vs Previsão")
 
-    qtd = st.slider(
-        "Quantidade de períodos para visualização:",
-        min_value=10,
-        max_value=100,
-        value=30
-    )
+    col1, col2 = st.columns(2)
 
-    dados_bt = backtest.tail(qtd)
+    data_min = backtest["Data"].min()
+    data_max = backtest["Data"].max()
+
+    with col1:
+        inicio = st.date_input(
+            "Data inicial",
+            value=data_min,
+            min_value=data_min,
+            max_value=data_max,
+            key="bt_inicio"
+        )
+
+    with col2:
+        fim = st.date_input(
+            "Data final",
+            value=data_max,
+            min_value=data_min,
+            max_value=data_max,
+            key="bt_fim"
+        )
+
+    dados_bt = backtest[
+        (backtest["Data"] >= pd.to_datetime(inicio)) &
+        (backtest["Data"] <= pd.to_datetime(fim))
+    ]
 
     fig = px.line(
         dados_bt,
         x="Data",
         y=["Valor Real", "Previsão"],
-        markers=True,
-        title="Comparação entre Valor Real e Previsão do Modelo"
+        title="Backtest – IBOVESPA (Histórico Completo)",
+        markers=False
     )
 
     st.plotly_chart(fig, use_container_width=True)
     st.dataframe(dados_bt, use_container_width=True)
+
 
 # =====================================================
 # ABA 3 — SOBRE O MODELO
@@ -186,3 +205,4 @@ with aba3:
     Apoiar a análise de mercado por meio da **previsão da tendência do IBOVESPA**,
     utilizando aprendizado de máquina aplicado a séries temporais financeiras.
     """)
+
