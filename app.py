@@ -137,7 +137,7 @@ with aba1:
 
 
 # =====================================================
-# with aba2:
+with aba2:
     st.subheader("📉 Backtest – Observado vs Previsto")
 
     col1, col2 = st.columns(2)
@@ -205,6 +205,7 @@ with aba1:
 
     st.dataframe(dados_bt, use_container_width=True)
 
+
 # =====================================================
 # ABA 3 — SOBRE O MODELO
 # =====================================================
@@ -229,5 +230,6 @@ with aba3:
     Apoiar a análise de mercado por meio da **previsão da tendência do IBOVESPA**,
     utilizando aprendizado de máquina aplicado a séries temporais financeiras.
     """)
+
 
 
