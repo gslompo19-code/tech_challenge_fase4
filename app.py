@@ -3,6 +3,8 @@ import pandas as pd
 import joblib
 import json
 import plotly.express as px
+import os
+from datetime import datetime
 
 # =====================================================
 # CONFIGURAÇÃO DA PÁGINA
@@ -19,7 +21,6 @@ modelo = joblib.load("modelo_ibov.pkl")
 dados = pd.read_csv("dados/historico_ibov.csv")
 metricas = json.load(open("metricas.json"))
 
-# Backtest gerado no notebook
 backtest = pd.read_csv(
     "dados/backtest_catboost.csv",
     parse_dates=["Data"]
@@ -32,7 +33,7 @@ st.title("📊 Sistema Preditivo de Tendência do IBOVESPA")
 
 st.markdown("""
 Este sistema utiliza **Machine Learning (CatBoost)** para prever a  
-**tendência de ALTA ou QUEDA do IBOVESPA** com base em dados históricos.
+**tendência de ALTA ou QUEDA do IBOVESPA**, com foco em apoio à decisão.
 """)
 
 # =====================================================
@@ -55,7 +56,6 @@ with aba1:
     e clique em **Prever Tendência**.
     """)
 
-    # Features exatamente como no treino
     feature_names = modelo.feature_names_
 
     entrada = {}
@@ -63,7 +63,7 @@ with aba1:
 
     for i, col in enumerate(feature_names):
         with cols[i % 3]:
-            if col in dados.columns:
+            if col in dados.columns and pd.api.types.is_numeric_dtype(dados[col]):
                 valor_padrao = float(dados[col].mean())
                 valor_min = float(dados[col].quantile(0.05))
                 valor_max = float(dados[col].quantile(0.95))
@@ -77,20 +77,18 @@ with aba1:
                 min_value=valor_min,
                 max_value=valor_max,
                 value=valor_padrao,
-                format="%.4f"
+                format="%.4f",
+                key=f"input_{col}"
             )
 
-    # DataFrame na ordem correta
     entrada_df = pd.DataFrame([entrada])[feature_names]
 
-    if st.button("📈 Prever Tendência"):
+    if st.button("📈 Prever Tendência", key="btn_prever"):
         try:
-            # Probabilidades
             proba = modelo.predict_proba(entrada_df)[0]
             prob_queda = proba[0]
             prob_alta = proba[1]
 
-            # Limiares calibrados
             LIMIAR_ALTA = 0.65
             LIMIAR_QUEDA = 0.65
 
@@ -98,43 +96,45 @@ with aba1:
 
             colA, colB = st.columns(2)
 
-            colA.metric(
-                "📈 Probabilidade de Alta",
-                f"{prob_alta*100:.1f}%"
-            )
-
-            colB.metric(
-                "📉 Probabilidade de Baixa",
-                f"{prob_queda*100:.1f}%"
-            )
+            colA.metric("📈 Probabilidade de Alta", f"{prob_alta*100:.1f}%")
+            colB.metric("📉 Probabilidade de Baixa", f"{prob_queda*100:.1f}%")
 
             st.progress(int(prob_alta * 100))
-            st.caption("Barra representa a probabilidade de tendência de ALTA")
+            st.caption("Barra representa a probabilidade de ALTA")
 
             st.markdown("### 🧠 Decisão do Modelo")
 
             if prob_alta >= LIMIAR_ALTA:
-                st.success(
-                    f"📈 **TENDÊNCIA DE ALTA DO IBOVESPA**  \n"
-                    f"Confiança elevada na direção positiva."
-                )
-
+                decisao = "ALTA"
+                st.success("📈 **TENDÊNCIA DE ALTA DO IBOVESPA**")
             elif prob_queda >= LIMIAR_QUEDA:
-                st.error(
-                    f"📉 **TENDÊNCIA DE QUEDA DO IBOVESPA**  \n"
-                    f"Confiança elevada na direção negativa."
-                )
-
+                decisao = "QUEDA"
+                st.error("📉 **TENDÊNCIA DE QUEDA DO IBOVESPA**")
             else:
-                st.warning(
-                    "⚖️ **TENDÊNCIA NEUTRA / INDEFINIDA**  \n"
-                    "O modelo não identificou uma direção dominante com confiança suficiente."
-                )
+                decisao = "NEUTRO"
+                st.warning("⚖️ **TENDÊNCIA NEUTRA / INDEFINIDA**")
+
+            # =========================
+            # LOG DE USO (BÔNUS)
+            # =========================
+            log = entrada_df.copy()
+            log["prob_alta"] = prob_alta
+            log["prob_queda"] = prob_queda
+            log["decisao_modelo"] = decisao
+            log["data_previsao"] = datetime.now()
+
+            os.makedirs("logs", exist_ok=True)
+
+            log.to_csv(
+                "logs/uso_app.csv",
+                mode="a",
+                header=not os.path.exists("logs/uso_app.csv"),
+                index=False
+            )
 
         except Exception as e:
             st.error("Erro ao realizar a previsão.")
             st.exception(e)
-
 
 # =====================================================
 # ABA 2 — BACKTEST
@@ -144,19 +144,29 @@ with aba2:
 
     qtd = st.slider(
         "Quantidade de períodos para visualização:",
-        min_value=10,
-        max_value=100,
-        value=30
+        min_value=30,
+        max_value=len(backtest),
+        value=100,
+        step=30,
+        key="slider_backtest"
     )
 
     dados_bt = backtest.tail(qtd)
 
-    fig = px.line(
+    fig = px.scatter(
         dados_bt,
         x="Data",
-        y=["Valor Real", "Previsão"],
-        markers=True,
-        title="Comparação entre Valor Real e Previsão do Modelo"
+        y="Valor Real",
+        color_discrete_sequence=["#1f77b4"],
+        title="Backtest – Observado vs Previsto"
+    )
+
+    fig.add_scatter(
+        x=dados_bt["Data"],
+        y=dados_bt["Previsão"],
+        mode="markers",
+        marker=dict(color="#d62728"),
+        name="Previsão"
     )
 
     st.plotly_chart(fig, use_container_width=True)
@@ -185,4 +195,4 @@ with aba3:
     ### 🎯 Objetivo do Sistema
     Apoiar a análise de mercado por meio da **previsão da tendência do IBOVESPA**,
     utilizando aprendizado de máquina aplicado a séries temporais financeiras.
-    """) 
+    """)
