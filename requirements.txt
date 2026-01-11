@@ -1,7 +1,10 @@
 streamlit
 pandas
 numpy
-joblib
-matplotlib
-catboost
 scikit-learn
+joblib
+catboost
+plotly
+yfinance
+matplotlib
+
