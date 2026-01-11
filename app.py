@@ -19,8 +19,11 @@ modelo = joblib.load("modelo_ibov.pkl")
 dados = pd.read_csv("dados/historico_ibov.csv")
 metricas = json.load(open("metricas.json"))
 
-# Backtest salvo no notebook
-backtest = pd.read_csv("dados/backtest_catboost.csv", parse_dates=["Data"])
+# Backtest gerado no notebook
+backtest = pd.read_csv(
+    "dados/backtest_catboost.csv",
+    parse_dates=["Data"]
+)
 
 # =====================================================
 # TÍTULO
@@ -28,8 +31,8 @@ backtest = pd.read_csv("dados/backtest_catboost.csv", parse_dates=["Data"])
 st.title("📊 Sistema Preditivo de Tendência do IBOVESPA")
 
 st.markdown("""
-Este sistema utiliza **Machine Learning (CatBoost)** para prever a **tendência do IBOVESPA**
-com base em dados históricos.
+Este sistema utiliza **Machine Learning (CatBoost)** para prever a  
+**tendência de ALTA ou QUEDA do IBOVESPA** com base em dados históricos.
 """)
 
 # =====================================================
@@ -48,11 +51,11 @@ with aba1:
     st.subheader("🔮 Previsão de Tendência do IBOVESPA")
 
     st.markdown("""
-    Este módulo permite **simular um cenário de mercado** e obter a previsão
-    da **tendência do IBOVESPA** para o próximo período, com base no modelo treinado.
+    Simule um cenário de mercado preenchendo os valores abaixo  
+    e clique em **Prever Tendência**.
     """)
 
-    # Garantir exatamente as features usadas no treino
+    # Features exatamente como no treino
     feature_names = modelo.feature_names_
 
     entrada = {}
@@ -77,7 +80,7 @@ with aba1:
                 format="%.4f"
             )
 
-    # DataFrame FINAL — ordem correta
+    # DataFrame na ordem correta
     entrada_df = pd.DataFrame([entrada])[feature_names]
 
     if st.button("📈 Prever Tendência"):
@@ -87,29 +90,31 @@ with aba1:
             prob_queda = proba[0]
             prob_alta = proba[1]
 
+            # Limiares calibrados (anti-viés de alta)
+            LIMIAR_ALTA = 0.65
+            LIMIAR_QUEDA = 0.65
+
             st.markdown("### 📊 Resultado da Previsão")
 
-            # Barra visual
             st.progress(int(prob_alta * 100))
             st.caption("Probabilidade estimada de tendência de alta")
 
-            # Decisão com zona neutra
-            if prob_alta >= 0.55:
+            if prob_alta >= LIMIAR_ALTA:
                 st.success(
                     f"📈 **TENDÊNCIA DE ALTA DO IBOVESPA**  \n"
-                    f"Probabilidade: **{prob_alta*100:.1f}%**"
+                    f"Probabilidade de alta: **{prob_alta*100:.1f}%**"
                 )
 
-            elif prob_queda >= 0.55:
+            elif prob_queda >= LIMIAR_QUEDA:
                 st.error(
                     f"📉 **TENDÊNCIA DE QUEDA DO IBOVESPA**  \n"
-                    f"Probabilidade: **{prob_queda*100:.1f}%**"
+                    f"Probabilidade de queda: **{prob_queda*100:.1f}%**"
                 )
 
             else:
                 st.warning(
-                    "⚠️ **TENDÊNCIA NEUTRA / INDEFINIDA**  \n"
-                    "O modelo não identificou uma direção dominante."
+                    "⚖️ **TENDÊNCIA NEUTRA / INDEFINIDA**  \n"
+                    "O modelo não identificou uma direção dominante com confiança suficiente."
                 )
 
         except Exception as e:
@@ -140,7 +145,6 @@ with aba2:
     )
 
     st.plotly_chart(fig, use_container_width=True)
-
     st.dataframe(dados_bt, use_container_width=True)
 
 # =====================================================
@@ -150,9 +154,9 @@ with aba3:
     st.subheader("ℹ️ Informações do Modelo")
 
     st.markdown("""
-    **Modelo utilizado:** CatBoostClassifier  
-    **Tipo:** Classificação binária (Alta / Queda)  
-    **Validação:** Temporal (TimeSeriesSplit)  
+    **Modelo:** CatBoostClassifier  
+    **Tipo:** Classificação Binária (Alta / Queda)  
+    **Validação:** Temporal (TimeSeriesSplit)
     """)
 
     col1, col2, col3, col4 = st.columns(4)
@@ -163,9 +167,7 @@ with aba3:
     col4.metric("Overfitting", f"{metricas['overfitting_percentual']:.2f}%")
 
     st.markdown("""
-    ### 🎯 Objetivo do Modelo
-    Antecipar a **tendência do IBOVESPA**, auxiliando na análise de mercado e tomada
-    de decisão baseada em dados.
+    ### 🎯 Objetivo do Sistema
+    Apoiar a análise de mercado por meio da **previsão da tendência do IBOVESPA**,
+    utilizando aprendizado de máquina aplicado a séries temporais financeiras.
     """)
-
-
