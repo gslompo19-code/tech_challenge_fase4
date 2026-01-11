@@ -90,25 +90,39 @@ with aba1:
             prob_queda = proba[0]
             prob_alta = proba[1]
 
-            # Limiares calibrados (anti-viés de alta)
+            # Limiares calibrados
             LIMIAR_ALTA = 0.65
             LIMIAR_QUEDA = 0.65
 
-            st.markdown("### 📊 Resultado da Previsão")
+            st.markdown("### 📊 Probabilidades Estimadas")
+
+            colA, colB = st.columns(2)
+
+            colA.metric(
+                "📈 Probabilidade de Alta",
+                f"{prob_alta*100:.1f}%"
+            )
+
+            colB.metric(
+                "📉 Probabilidade de Baixa",
+                f"{prob_queda*100:.1f}%"
+            )
 
             st.progress(int(prob_alta * 100))
-            st.caption("Probabilidade estimada de tendência de alta")
+            st.caption("Barra representa a probabilidade de tendência de ALTA")
+
+            st.markdown("### 🧠 Decisão do Modelo")
 
             if prob_alta >= LIMIAR_ALTA:
                 st.success(
                     f"📈 **TENDÊNCIA DE ALTA DO IBOVESPA**  \n"
-                    f"Probabilidade de alta: **{prob_alta*100:.1f}%**"
+                    f"Confiança elevada na direção positiva."
                 )
 
             elif prob_queda >= LIMIAR_QUEDA:
                 st.error(
                     f"📉 **TENDÊNCIA DE QUEDA DO IBOVESPA**  \n"
-                    f"Probabilidade de queda: **{prob_queda*100:.1f}%**"
+                    f"Confiança elevada na direção negativa."
                 )
 
             else:
@@ -171,3 +185,4 @@ with aba3:
     Apoiar a análise de mercado por meio da **previsão da tendência do IBOVESPA**,
     utilizando aprendizado de máquina aplicado a séries temporais financeiras.
     """)
+
