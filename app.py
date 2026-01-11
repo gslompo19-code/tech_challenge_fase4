@@ -137,74 +137,30 @@ with aba1:
 
 
 # =====================================================
+# ABA 2 — BACKTEST
+# =====================================================
 with aba2:
-    st.subheader("📉 Backtest – Observado vs Previsto")
+    st.subheader("📉 Backtest – Valor Real vs Previsão")
 
-    col1, col2 = st.columns(2)
-
-    data_min = backtest["Data"].min()
-    data_max = backtest["Data"].max()
-
-    with col1:
-        inicio = st.date_input(
-            "Data inicial",
-            value=data_min,
-            min_value=data_min,
-            max_value=data_max,
-            key="bt_inicio"
-        )
-
-    with col2:
-        fim = st.date_input(
-            "Data final",
-            value=data_max,
-            min_value=data_min,
-            max_value=data_max,
-            key="bt_fim"
-        )
-
-    dados_bt = backtest[
-        (backtest["Data"] >= pd.to_datetime(inicio)) &
-        (backtest["Data"] <= pd.to_datetime(fim))
-    ].copy()
-
-    # Converter para texto (melhor legenda)
-    dados_bt["Tipo"] = "Observado"
-    dados_prev = dados_bt.copy()
-    dados_prev["Tipo"] = "Previsto"
-    dados_prev["Valor"] = dados_prev["Previsão"]
-
-    dados_obs = dados_bt.copy()
-    dados_obs["Valor"] = dados_obs["Valor Real"]
-
-    dados_plot = pd.concat([
-        dados_obs[["Data", "Valor", "Tipo"]],
-        dados_prev[["Data", "Valor", "Tipo"]]
-    ])
-
-    fig = px.scatter(
-        dados_plot,
-        x="Data",
-        y="Valor",
-        color="Tipo",
-        title="Backtest – Tendência Observada vs Prevista",
-        color_discrete_map={
-            "Observado": "#1f77b4",  # azul
-            "Previsto": "#ff7f0e"    # laranja
-        },
-        opacity=0.7
+    qtd = st.slider(
+        "Quantidade de períodos para visualização:",
+        min_value=10,
+        max_value=100,
+        value=30
     )
 
-    fig.update_yaxes(
-        tickvals=[0, 1],
-        ticktext=["Queda", "Alta"],
-        title="Tendência"
+    dados_bt = backtest.tail(qtd)
+
+    fig = px.line(
+        dados_bt,
+        x="Data",
+        y=["Valor Real", "Previsão"],
+        markers=True,
+        title="Comparação entre Valor Real e Previsão do Modelo"
     )
 
     st.plotly_chart(fig, use_container_width=True)
-
     st.dataframe(dados_bt, use_container_width=True)
-
 
 # =====================================================
 # ABA 3 — SOBRE O MODELO
@@ -229,7 +185,4 @@ with aba3:
     ### 🎯 Objetivo do Sistema
     Apoiar a análise de mercado por meio da **previsão da tendência do IBOVESPA**,
     utilizando aprendizado de máquina aplicado a séries temporais financeiras.
-    """)
-
-
-
+    """) 
